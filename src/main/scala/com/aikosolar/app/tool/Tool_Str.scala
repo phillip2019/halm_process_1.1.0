@@ -22,7 +22,7 @@ import com.alibaba.fastjson.JSONObject
    val DateStrdf = new SimpleDateFormat("yyyy-MM-dd HH:mm")
    val cal = Calendar.getInstance
    var data: Date = null
-   var strdata = "0000"
+   var strdata = ""
    data = DateStrdf.parse(str)
    val timesub=str.substring(11,16)
    cal.setTime(data)
@@ -57,6 +57,22 @@ import com.alibaba.fastjson.JSONObject
     }
    }
     strdata
+  }
+
+
+  def getDayDate(site:String,time:String): String ={
+   val DateStrdf = new SimpleDateFormat("yyyy-MM-dd HH:mm")
+   val cal = Calendar.getInstance
+   val data = DateStrdf.parse(time)
+   var strdata=""
+   cal.setTime(data)
+   if(site.startsWith("G")){
+    cal.add(Calendar.HOUR_OF_DAY, -7)
+    cal.add(Calendar.MINUTE,-30)
+   }else{
+    cal.add(Calendar.HOUR_OF_DAY, -8)
+   }
+   DateStrdf.format(cal.getTime).substring(0, 10)
   }
 
 

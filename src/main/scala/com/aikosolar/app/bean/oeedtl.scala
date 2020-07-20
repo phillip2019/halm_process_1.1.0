@@ -101,8 +101,9 @@ object oeedtl {
       tool_str.isEmpty(js.getJSONObject("data").getOrDefault("CellParamTkU", "") ),
       tool_str.isEmpty(js.getJSONObject("data").getOrDefault("Insol_M1", "") ),
       tool_str.isEmpty(js.getJSONObject("data").getOrDefault("M3_Insol", "") ) ,
-      bin_type,
-      order_type
+      order_type,
+      bin_type
+
     )
     oeehalmdtl
   }

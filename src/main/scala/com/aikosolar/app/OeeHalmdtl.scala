@@ -6,6 +6,7 @@ import com.aikosolar.app.GlobalConfigUtil.config
 import com.aikosolar.app.bean.{halmfull, oeedtl}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaConsumerBase}
 
 
 
@@ -14,7 +15,14 @@ object OeeHalmdtl {
     // Flink流式环境的创建
     val env = FlinkUtils.initFlinkEnv()
     // 整合Kafka
-    val consumer = FlinkUtils.initKafkaFlink()
+    var consumer:FlinkKafkaConsumerBase[String] = FlinkUtils.initKafkaFlink()
+    if(args.length>0  && "E".equals(args(0))){
+      consumer=consumer.setStartFromEarliest()
+    } else if(args.length>0 && "L".equals(args(0))){
+      consumer=consumer.setStartFromLatest()
+    }else{
+    }
+      //.setStartFromEarliest()
     // 获取kafka信息
     val kafkaDataStream: DataStream[String] = env.addSource(consumer)
     //广播流kafka配置
