@@ -84,15 +84,24 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
       .keyBy(_._1)
       .process(new MergeFunction())
     stream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetTopic, new SimpleStringSchema()))
-    stream.print()
+
+    if ("test".equalsIgnoreCase(c.runMode)) {
+      stream.print()
+    }
 
     val beginMissStream = stream.getSideOutput(new OutputTag[String]("miss-begin-stream"))
     beginMissStream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetMissBeginTopic, new SimpleStringSchema()))
-    beginMissStream.printToErr()
+
+    if ("test".equalsIgnoreCase(c.runMode)) {
+      beginMissStream.printToErr()
+    }
 
     val endMissStream = stream.getSideOutput(new OutputTag[String]("miss-end-stream"))
     endMissStream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetMissEndTopic, new SimpleStringSchema()))
-    endMissStream.printToErr()
+
+    if ("test".equalsIgnoreCase(c.runMode)) {
+      endMissStream.printToErr()
+    }
   }
 
   /**
@@ -114,7 +123,7 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
     // 当程序关闭的时候,触发额外的checkpoint
     env.getCheckpointConfig.enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.valueOf(c.cpExternalizedCheckpointCleanup))
     // 设置检查点在hdfs中存储的位置
-    if("prod".equalsIgnoreCase(c.runMode)){
+    if ("prod".equalsIgnoreCase(c.runMode)) {
       env.setStateBackend(new FsStateBackend(c.checkpointDataUri))
     }
   }
