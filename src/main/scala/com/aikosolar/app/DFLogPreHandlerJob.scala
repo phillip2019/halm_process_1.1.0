@@ -14,7 +14,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions._
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010
+import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 import org.apache.flink.util.Collector
 
 /**
@@ -64,7 +64,9 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
       .keyBy(_._1)
       .process(new MergeFunction())
 
-    stream.print()
+    stream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers,c.targetTopic,new SimpleStringSchema()))
+
+//    stream.print()
   }
 
 
