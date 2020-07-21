@@ -8,9 +8,8 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import picocli.CommandLine
 
 /**
-  * FlinkRunner脚手架
   *
-  * @author <a href="cheng.cao@zetatech.com.cn">carlc</a>
+  * @author carlc
   */
 abstract class FlinkRunner[C <: FinkBaseConfig] {
 
@@ -18,17 +17,6 @@ abstract class FlinkRunner[C <: FinkBaseConfig] {
     runWith(args)
   }
 
-  def parseConfig(args: Array[String]): C = {
-    // 个人不喜欢FLink提供的解析参数工具,所以用第三方的
-
-    val pType: ParameterizedType = (this.getClass.getGenericSuperclass).asInstanceOf[ParameterizedType]
-    val actualTypeArguments: Array[Type] = pType.getActualTypeArguments
-    val t: Type = actualTypeArguments(0)
-    val c: Class[C] = t.asInstanceOf[Class[C]]
-    val instance: C = c.newInstance()
-    new CommandLine(instance).parse(args: _*)
-    instance
-  }
 
   def runWith(args: Array[String]): Unit = {
     for (arg <- args) println(arg)
@@ -44,11 +32,24 @@ abstract class FlinkRunner[C <: FinkBaseConfig] {
 
     this.setupEnv(env, config)
 
+    env.getConfig.setGlobalJobParameters(config)
+
     this.run(env, config)
 
     val jName = jobName(config)
 
     if (jName == null || "".equals(jName.trim)) env.execute() else env.execute(jName)
+  }
+
+  def parseConfig(args: Array[String]): C = {
+    // 个人不喜欢FLink提供的解析参数工具,所以用第三方的
+    val pType: ParameterizedType = (this.getClass.getGenericSuperclass).asInstanceOf[ParameterizedType]
+    val actualTypeArguments: Array[Type] = pType.getActualTypeArguments
+    val t: Type = actualTypeArguments(0)
+    val c: Class[C] = t.asInstanceOf[Class[C]]
+    val instance: C = c.newInstance()
+    new CommandLine(instance).parse(args: _*)
+    instance
   }
 
   /**
@@ -70,4 +71,6 @@ abstract class FlinkRunner[C <: FinkBaseConfig] {
     * 业务方法[不需自己调用env.execute()]
     */
   def run(env: StreamExecutionEnvironment, c: C)
+
+//  def createSource[T: TypeInformation](c: C): SourceFunction[T]
 }
