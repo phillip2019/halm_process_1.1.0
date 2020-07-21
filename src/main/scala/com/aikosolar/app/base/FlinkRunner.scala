@@ -3,6 +3,7 @@ package com.aikosolar.app.base
 import java.lang.reflect.{ParameterizedType, Type}
 
 import com.aikosolar.app.base.config.FinkBaseConfig
+import org.apache.commons.lang3.StringUtils
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import picocli.CommandLine
@@ -60,7 +61,14 @@ abstract class FlinkRunner[C <: FinkBaseConfig] {
   /**
     * 配置校验
     */
-  def validate(c: C): Unit = {}
+
+  def validate(c: C): Unit = {
+    if ("prod".equalsIgnoreCase(c.runMode)){
+      if(StringUtils.isBlank(c.checkpointDataUri)){
+        throw new IllegalArgumentException("-- checkpointDataUri is required")
+      }
+    }
+  }
 
   /**
     * 构建/初始化 env
