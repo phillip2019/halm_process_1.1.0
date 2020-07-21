@@ -13,10 +13,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions._
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
 import org.apache.flink.util.Collector
-
+import org.apache.flink.streaming.api.CheckpointingMode
+import org.apache.flink.streaming.api.environment.CheckpointConfig
 /**
   *
   * DF日志数据预处理器
@@ -76,6 +76,21 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
   override def setupEnv(env: StreamExecutionEnvironment, c: DFLogPreHandleConfig): Unit = {
     env.setParallelism(c.parallelism)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    // 设置checkpointf
+    // 开启checkpoint,间隔时间为5s
+    env.enableCheckpointing(5000)
+    // 设置处理模式
+    env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+    // 设置两次checkpoint的间隔
+    env.getCheckpointConfig.setMinPauseBetweenCheckpoints(1000)
+    // 设置超时时长
+    env.getCheckpointConfig.setCheckpointTimeout(60000)
+    // 设置并行度
+    env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+    // 当程序关闭的时候,触发额外的checkpoint
+    env.getCheckpointConfig.enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+    // 设置检查点在hdfs中存储的位置
+    //env.setStateBackend(new FsStateBackend("hdfs://172.16.98.85:8020/flink-checkpoint"))
   }
 
   override def jobName(c: DFLogPreHandleConfig): String = c.jobName
