@@ -33,6 +33,7 @@ import org.slf4j.{Logger, LoggerFactory}
   * 运行参数:
   *
   * --job-name=df-log-job
+  * --time-characteristic=EventTime
   * --bootstrap.servers=kafka1:9092,kafka2:9092,kafka3:9092
   * --topic=t1
   * --group.id=g1
