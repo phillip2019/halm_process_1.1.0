@@ -19,6 +19,8 @@ class FLinkKafkaConfig extends FinkBaseConfig {
   @Option(names = Array("--topic"), required = true, description = Array("Kafka Topic"))
   var topic: String = _
 
+  @Option(names = Array("--reset.strategy"), required = false, description = Array("kafka消费重置策略(不区分大小写):none(默认)|earliest|latest|GroupOffsets"))
+  var resetStrategy: String = "NONE"
 
   override def toMap: util.Map[String, String] = {
 

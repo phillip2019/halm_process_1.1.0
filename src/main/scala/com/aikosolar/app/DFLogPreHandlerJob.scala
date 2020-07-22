@@ -4,20 +4,17 @@ import java.util.Properties
 
 import com.aikosolar.app.base.FlinkRunner
 import com.aikosolar.app.conf.DFLogPreHandleConfig
-import com.alibaba.fastjson.{JSON, JSONPath}
+import com.alibaba.fastjson.JSONPath
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.time.DateUtils
 import org.apache.flink.api.common.functions.AggregateFunction
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.common.state.{AggregatingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.runtime.state.filesystem.FsStateBackend
-import org.apache.flink.streaming.api.environment.CheckpointConfig
 import org.apache.flink.streaming.api.functions._
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010
 import org.apache.flink.util.Collector
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -51,15 +48,23 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
 
   override def run(env: StreamExecutionEnvironment, c: DFLogPreHandleConfig): Unit = {
 
-    val hostNameJsonPath:JSONPath = JSONPath.compile("$.host.name")
-    val pathJsonPath:JSONPath = JSONPath.compile("$.log.file.path")
-    val messageJsonPath:JSONPath = JSONPath.compile("$.message")
+    val hostNameJsonPath: JSONPath = JSONPath.compile("$.host.name")
+    val pathJsonPath: JSONPath = JSONPath.compile("$.log.file.path")
+    val messageJsonPath: JSONPath = JSONPath.compile("$.message")
 
     val props = new Properties()
     props.setProperty("bootstrap.servers", c.bootstrapServers)
     props.setProperty("group.id", c.groupId)
 
+
     val source = new FlinkKafkaConsumer010[String](c.topic, new SimpleStringSchema, props)
+
+    c.resetStrategy.toLowerCase() match {
+      case "earliest" => source.setStartFromEarliest()
+      case "latest" => source.setStartFromLatest()
+      case "groupoffsets" => source.setStartFromGroupOffsets()
+      case "none" =>
+    }
 
     val stream = env.addSource(source)
       .filter(StringUtils.isNotBlank(_))
@@ -67,7 +72,7 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
         val hostname = hostNameJsonPath.eval(x).toString
         val path = pathJsonPath.eval(x).toString
         val message = messageJsonPath.eval(x).toString
-        DeviceLog(hostname,path,message)
+        DeviceLog(hostname, path, message)
       })
       .map(_.message)
       .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[String] {
