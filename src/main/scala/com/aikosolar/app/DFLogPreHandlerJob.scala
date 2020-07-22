@@ -4,6 +4,7 @@ import java.util.Properties
 
 import com.aikosolar.app.base.FlinkRunner
 import com.aikosolar.app.conf.DFLogPreHandleConfig
+import com.alibaba.fastjson.{JSON, JSONPath}
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.time.DateUtils
 import org.apache.flink.api.common.functions.AggregateFunction
@@ -50,6 +51,10 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
 
   override def run(env: StreamExecutionEnvironment, c: DFLogPreHandleConfig): Unit = {
 
+    val hostNameJsonPath:JSONPath = JSONPath.compile("$.host.name")
+    val pathJsonPath:JSONPath = JSONPath.compile("$.log.file.path")
+    val messageJsonPath:JSONPath = JSONPath.compile("$.message")
+
     val props = new Properties()
     props.setProperty("bootstrap.servers", c.bootstrapServers)
     props.setProperty("group.id", c.groupId)
@@ -58,6 +63,13 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
 
     val stream = env.addSource(source)
       .filter(StringUtils.isNotBlank(_))
+      .map(x => {
+        val hostname = hostNameJsonPath.eval(x).toString
+        val path = pathJsonPath.eval(x).toString
+        val message = messageJsonPath.eval(x).toString
+        DeviceLog(hostname,path,message)
+      })
+      .map(_.message)
       .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[String] {
 
         private val MAX_LATENESS: Long = 2 * 60 * 1000
@@ -84,25 +96,26 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
       .map(("dummyKey", _)) // 由于后续需要keyedState,所以这里添加一个无逻辑含义的字段
       .keyBy(_._1)
       .process(new MergeFunction())
-    stream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetTopic, new SimpleStringSchema()))
-
-    if ("test".equalsIgnoreCase(c.runMode)) {
-      stream.print()
-    }
-
-    val beginMissStream = stream.getSideOutput(new OutputTag[String]("miss-begin-stream"))
-    beginMissStream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetMissBeginTopic, new SimpleStringSchema()))
-
-    if ("test".equalsIgnoreCase(c.runMode)) {
-      beginMissStream.printToErr()
-    }
-
-    val endMissStream = stream.getSideOutput(new OutputTag[String]("miss-end-stream"))
-    endMissStream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetMissEndTopic, new SimpleStringSchema()))
-
-    if ("test".equalsIgnoreCase(c.runMode)) {
-      endMissStream.printToErr()
-    }
+    stream.print()
+    //    stream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetTopic, new SimpleStringSchema()))
+    //
+    //    if ("test".equalsIgnoreCase(c.runMode)) {
+    //      stream.print()
+    //    }
+    //
+    //    val beginMissStream = stream.getSideOutput(new OutputTag[String]("miss-begin-stream"))
+    //    beginMissStream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetMissBeginTopic, new SimpleStringSchema()))
+    //
+    //    if ("test".equalsIgnoreCase(c.runMode)) {
+    //      beginMissStream.printToErr()
+    //    }
+    //
+    //    val endMissStream = stream.getSideOutput(new OutputTag[String]("miss-end-stream"))
+    //    endMissStream.addSink(new FlinkKafkaProducer010[String](c.targetBootstrapServers, c.targetMissEndTopic, new SimpleStringSchema()))
+    //
+    //    if ("test".equalsIgnoreCase(c.runMode)) {
+    //      endMissStream.printToErr()
+    //    }
   }
 
   class MergeFunction extends KeyedProcessFunction[String, (String, String), String] {
@@ -193,5 +206,8 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
 
     override def merge(acc1: Seq[String], acc2: Seq[String]): Seq[String] = acc1 ++ acc2
   }
+
+
+  case class DeviceLog(host: String, path: String, message: String)
 
 }
