@@ -104,32 +104,6 @@ object DFLogPreHandlerJob extends FlinkRunner[DFLogPreHandleConfig] {
     }
   }
 
-  /**
-    * 构建/初始化 env
-    */
-  override def setupEnv(env: StreamExecutionEnvironment, c: DFLogPreHandleConfig): Unit = {
-    env.setParallelism(c.parallelism)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    // 开启checkpoint,间隔时间为5s
-    env.enableCheckpointing(c.cpInterval)
-    // 设置处理模式
-    env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.valueOf(c.cpMode))
-    // 设置两次checkpoint的间隔
-    env.getCheckpointConfig.setMinPauseBetweenCheckpoints(c.cpMinPauseBetweenCheckpoints)
-    // 设置超时时长
-    env.getCheckpointConfig.setCheckpointTimeout(c.cpTimeout)
-    // 设置并行度
-    env.getCheckpointConfig.setMaxConcurrentCheckpoints(c.cpMaxConcurrentCheckpoints)
-    // 当程序关闭的时候,触发额外的checkpoint
-    env.getCheckpointConfig.enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.valueOf(c.cpExternalizedCheckpointCleanup))
-    // 设置检查点在hdfs中存储的位置
-    if ("prod".equalsIgnoreCase(c.runMode)) {
-      env.setStateBackend(new FsStateBackend(c.checkpointDataUri))
-    }
-  }
-
-  override def jobName(c: DFLogPreHandleConfig): String = c.jobName
-
   class MergeFunction extends KeyedProcessFunction[String, (String, String), String] {
     lazy val recordsState = getRuntimeContext.getAggregatingState(new AggregatingStateDescriptor[String, Seq[String], String]("records-state", new DFLogAggregateFunction, implicitly[TypeInformation[Seq[String]]]))
     lazy val beginState = getRuntimeContext.getState(new ValueStateDescriptor[Boolean]("begin-state", classOf[Boolean]))

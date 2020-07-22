@@ -4,7 +4,9 @@ import java.lang.reflect.{ParameterizedType, Type}
 
 import com.aikosolar.app.base.config.FinkBaseConfig
 import org.apache.commons.lang3.StringUtils
-import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
+import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.streaming.api.environment.CheckpointConfig
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import picocli.CommandLine
 
@@ -27,9 +29,6 @@ abstract class FlinkRunner[C <: FinkBaseConfig] {
     this.validate(config)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    // 仅帮助设置下而,当为eventTime时自行指定
-    env.setStreamTimeCharacteristic(TimeCharacteristic.valueOf(config.timeCharacteristic))
 
     this.setupEnv(env, config)
 
@@ -73,12 +72,30 @@ abstract class FlinkRunner[C <: FinkBaseConfig] {
   /**
     * 构建/初始化 env
     */
-  def setupEnv(env: StreamExecutionEnvironment, c: C): Unit = {}
+  def setupEnv(env: StreamExecutionEnvironment, c: C): Unit = {
+    env.setParallelism(c.parallelism)
+    // 设置时间类型
+    env.setStreamTimeCharacteristic(TimeCharacteristic.valueOf(c.timeCharacteristic))
+    // 开启checkpoint,间隔时间为5s
+    env.enableCheckpointing(c.cpInterval)
+    // 设置处理模式
+    env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.valueOf(c.cpMode))
+    // 设置两次checkpoint的间隔
+    env.getCheckpointConfig.setMinPauseBetweenCheckpoints(c.cpMinPauseBetweenCheckpoints)
+    // 设置超时时长
+    env.getCheckpointConfig.setCheckpointTimeout(c.cpTimeout)
+    // 设置并行度
+    env.getCheckpointConfig.setMaxConcurrentCheckpoints(c.cpMaxConcurrentCheckpoints)
+    // 当程序关闭的时候,触发额外的checkpoint
+    env.getCheckpointConfig.enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.valueOf(c.cpExternalizedCheckpointCleanup))
+    // 设置检查点在hdfs中存储的位置
+    if ("prod".equalsIgnoreCase(c.runMode)) {
+      env.setStateBackend(new FsStateBackend(c.checkpointDataUri))
+    }
+  }
 
   /**
     * 业务方法[不需自己调用env.execute()]
     */
   def run(env: StreamExecutionEnvironment, c: C)
-
-//  def createSource[T: TypeInformation](c: C): SourceFunction[T]
 }
